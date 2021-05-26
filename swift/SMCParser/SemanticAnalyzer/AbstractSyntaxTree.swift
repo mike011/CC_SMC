@@ -20,14 +20,25 @@ enum AnalysisError: Equatable {
     case undefinedState(String)
     case undefinedSuperState(String)
     case unusedState(String)
-    case confictingSuperStates(extra: String)
+    case conflictingSuperStates(extra: String)
 }
 
-struct State {
+struct State: Equatable {
+
     var name: String
     var entryActions = [String]()
     var exitActions = [String]()
     var isAbstract = false
     var superStates = [State]()
-    //var transitions = [SemanticTransition]()
+    var transitions = [SemanticTransition]()
+
+    static func == (lhs: State, rhs: State) -> Bool {
+        return lhs.name == rhs.name
+    }
+}
+
+struct SemanticTransition {
+    var event: String
+    var nextState: State
+    var actions = [String]()
 }

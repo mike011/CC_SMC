@@ -189,16 +189,16 @@ struct SemanticAnalyzer {
 struct SuperClassCrawler {
     private var ast: AbstractSyntaxTree!
     private var concreteState: State?
+    private var transitionTuples = [String: TransitionTuple]()
 
     mutating func checkSuperClassTransitions() {
         for state in ast.states.values where !state.isAbstract {
             concreteState = state
-            //transitionTuples =
             checkTransitionsForState(concreteState)
         }
     }
 
-    private func checkTransitionsForState(_ state: State?) {
+    private mutating func checkTransitionsForState(_ state: State?) {
         guard let state = state else {
             return
         }
@@ -208,8 +208,57 @@ struct SuperClassCrawler {
         checkStateForPreviouslyDefinedTransition(state)
     }
 
-
-    private func checkStateForPreviouslyDefinedTransition(_ state: State) {
-
+    private mutating func checkStateForPreviouslyDefinedTransition(_ state: State) {
+        for transition in state.transitions {
+            checkTransitionForPreviousDefinition(state, transition)
+        }
     }
+
+    private mutating func checkTransitionForPreviousDefinition(_ state: State, _ st: SemanticTransition) {
+        let thisTuple = TransitionTuple(currentState: state.name, event: st.event, nextState: st.nextState.name, actions: st.actions)
+        if transitionTuples.keys.contains(thisTuple.event) {
+            determineIfThePreviousDefinitionIsAnError(state, thisTuple)
+        } else {
+            transitionTuples[thisTuple.event] = thisTuple
+        }
+    }
+
+    private mutating func determineIfThePreviousDefinitionIsAnError(_ state: State, _ thisTuple: TransitionTuple) {
+        let previousTuple = transitionTuples[thisTuple.event]!
+        if !transitionsHaveSameOutcomes(thisTuple, previousTuple) {
+            checkForOverriddenTransition(state, thisTuple: thisTuple, previousTuple: previousTuple)
+        }
+    }
+
+    private mutating func checkForOverriddenTransition(_ state: State, thisTuple: TransitionTuple, previousTuple: TransitionTuple) {
+        let definingStates = ast.states[previousTuple.currentState]!
+        if isSuperStateOf(definingStates, state) {
+            transitionTuples[thisTuple.event] = thisTuple
+        } else {
+            ast.errors.append(.conflictingSuperStates(extra: "\(concreteState!.name)|\(thisTuple.event)"))
+        }
+    }
+
+    private func transitionsHaveSameOutcomes(_ t1: TransitionTuple, _ t2: TransitionTuple) -> Bool {
+        return t1.nextState == t2.nextState && t1.actions == t2.actions
+    }
+
+    private func isSuperStateOf(_ possibleSuperState: State, _ state: State) -> Bool {
+        if state == possibleSuperState {
+            return true
+        }
+        for superState in state.superStates {
+            if isSuperStateOf(possibleSuperState, superState) {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+struct TransitionTuple {
+    var currentState: String
+    var event: String
+    var nextState: String
+    var actions: [String]
 }

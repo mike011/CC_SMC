@@ -94,7 +94,7 @@ class SemanticStateErrors: SemanticAnalyzerTests {
         }
         """
         let errors = produceAst(syntax: syntax).errors
-        XCTAssertContains(errors, value: .confictingSuperStates(extra: "s|e1"))
+        XCTAssertContains(errors, value: .conflictingSuperStates(extra: "s|e1"))
     }
 }
 
